@@ -46,7 +46,10 @@ template <typename RGB, unsigned int optionFlags>
 void SMLayerBackground<RGB, optionFlags>::frameRefreshCallback(void) {
     handleBufferSwap();
 
-    calculateBackgroundLUT(backgroundColorCorrectionLUT, backgroundBrightness);
+    if (brightnessChanged) {
+        calculateBackgroundLUT(backgroundColorCorrectionLUT, backgroundBrightness);
+        brightnessChanged = false;
+    }
 }
 
 template <typename RGB, unsigned int optionFlags>
@@ -54,8 +57,8 @@ void SMLayerBackground<RGB, optionFlags>::fillRefreshRow(uint16_t hardwareY, rgb
     RGB currentPixel;
     int i;
 
-    if(this->ccEnabled) {
-        for(i=0; i<this->matrixWidth; i++) {
+    if (this->ccEnabled) {
+        for (i=0; i<this->matrixWidth; i++) {
             currentPixel = currentRefreshBufferPtr[(hardwareY * this->matrixWidth) + i];
             // load background pixel with color correction
             refreshRow[i] = rgb48(backgroundColorCorrectionLUT[currentPixel.red],
@@ -63,10 +66,14 @@ void SMLayerBackground<RGB, optionFlags>::fillRefreshRow(uint16_t hardwareY, rgb
                 backgroundColorCorrectionLUT[currentPixel.blue]);
         }
     } else {
-        for(i=0; i<this->matrixWidth; i++) {
-            currentPixel = currentRefreshBufferPtr[(hardwareY * this->matrixWidth) + i];
-            // load background pixel without color correction
-            refreshRow[i] = currentPixel;
+        if (sizeof(RGB) == sizeof(rgb48)) {
+            memcpy(refreshRow, &currentRefreshBufferPtr[hardwareY * this->matrixWidth], sizeof(RGB) * this->matrixWidth);
+        } else {
+            for (i=0; i<this->matrixWidth; i++) {
+                currentPixel = currentRefreshBufferPtr[(hardwareY * this->matrixWidth) + i];
+                // load background pixel without color correction
+                refreshRow[i] = currentPixel;
+            }
         }
     }
 }
@@ -76,8 +83,8 @@ void SMLayerBackground<RGB, optionFlags>::fillRefreshRow(uint16_t hardwareY, rgb
     RGB currentPixel;
     int i;
 
-    if(this->ccEnabled) {
-        for(i=0; i<this->matrixWidth; i++) {
+    if (this->ccEnabled) {
+        for (i=0; i<this->matrixWidth; i++) {
             currentPixel = currentRefreshBufferPtr[(hardwareY * this->matrixWidth) + i];
             // load background pixel with color correction
             refreshRow[i] = rgb48(backgroundColorCorrectionLUT[currentPixel.red],
@@ -85,10 +92,14 @@ void SMLayerBackground<RGB, optionFlags>::fillRefreshRow(uint16_t hardwareY, rgb
                 backgroundColorCorrectionLUT[currentPixel.blue]);
         }
     } else {
-        for(i=0; i<this->matrixWidth; i++) {
-            currentPixel = currentRefreshBufferPtr[(hardwareY * this->matrixWidth) + i];
-            // load background pixel without color correction
-            refreshRow[i] = currentPixel;
+        if (sizeof(RGB) == sizeof(rgb24)) {
+            memcpy(refreshRow, &currentRefreshBufferPtr[hardwareY * this->matrixWidth], sizeof(RGB) * this->matrixWidth);
+        } else {
+            for (i=0; i<this->matrixWidth; i++) {
+                currentPixel = currentRefreshBufferPtr[(hardwareY * this->matrixWidth) + i];
+                // load background pixel without color correction
+                refreshRow[i] = currentPixel;
+            }
         }
     }
 }
@@ -99,10 +110,6 @@ extern volatile int framesInterpolated;
 template <typename RGB, unsigned int optionFlags>
 void SMLayerBackground<RGB, optionFlags>::drawPixel(int16_t x, int16_t y, const RGB& color) {
     int hwx, hwy;
-
-    // check for out of bounds coordinates
-    if (x < 0 || y < 0 || x >= this->localWidth || y >= this->localHeight)
-        return;
 
     // map pixel into hardware buffer before writing
     if (this->rotation == rotation0) {
@@ -118,6 +125,10 @@ void SMLayerBackground<RGB, optionFlags>::drawPixel(int16_t x, int16_t y, const 
         hwx = y;
         hwy = (this->matrixHeight - 1) - x;
     }
+
+    // check for out of bounds coordinates
+    if (hwx < 0 || hwy < 0 || hwx >= this->localWidth || hwy >= this->localHeight)
+        return;
 
     currentDrawBufferPtr[(hwy * this->matrixWidth) + hwx] = color;
 }
@@ -460,9 +471,9 @@ void SMLayerBackground<RGB, optionFlags>::fillRoundRectangle(int16_t x0, int16_t
         SWAPint(y1, y0);
 
     // decrease large radius that would break shape
-    if(radius > (x1-x0)/2)
+    if (radius > (x1-x0)/2)
         radius = (x1-x0)/2;
-    if(radius > (y1-y0)/2)
+    if (radius > (y1-y0)/2)
         radius = (y1-y0)/2;
 
     int a = radius, b = 0;
@@ -543,9 +554,9 @@ void SMLayerBackground<RGB, optionFlags>::drawRoundRectangle(int16_t x0, int16_t
         SWAPint(y1, y0);
 
     // decrease large radius that would break shape
-    if(radius > (x1-x0)/2)
+    if (radius > (x1-x0)/2)
         radius = (x1-x0)/2;
-    if(radius > (y1-y0)/2)
+    if (radius > (y1-y0)/2)
         radius = (y1-y0)/2;
 
     int a = radius, b = 0;
@@ -793,11 +804,11 @@ void SMLayerBackground<RGB, optionFlags>::drawChar(int16_t x, int16_t y, const R
 
 template <typename RGB, unsigned int optionFlags>
 void SMLayerBackground<RGB, optionFlags>::drawString(int16_t x, int16_t y, const RGB& charColor, const char text[]) {
+    uint8_t maxChars = (this->localWidth / font->Width) + 1;
     int xcnt, ycnt, i = 0, offset = 0;
     char character;
-
-    // limit text to 10 chars, why?
-    for (i = 0; i < 10; i++) {
+    
+    for (i = 0; i < maxChars; i++) {
         character = text[offset++];
         if (character == '\0')
             return;
@@ -878,7 +889,7 @@ void SMLayerBackground<RGB, optionFlags>::swapBuffers(bool copy) {
 
     if (copy) {
         while (swapPending);
-        memcpy(currentDrawBufferPtr, currentRefreshBufferPtr, sizeof(RGB) * (this->matrixWidth * this->matrixHeight));
+        copyRefreshToDrawing();
     }
 }
 
@@ -901,6 +912,7 @@ void SMLayerBackground<RGB, optionFlags>::setBackBuffer(RGB *newBuffer) {
 template<typename RGB, unsigned int optionFlags>
 void SMLayerBackground<RGB, optionFlags>::setBrightness(uint8_t brightness) {
     backgroundBrightness = brightness;
+    brightnessChanged = true;
 }
 
 template<typename RGB, unsigned int optionFlags>
