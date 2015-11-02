@@ -149,18 +149,19 @@ private:
     SmartMatrix3<pwm_depth, width, height, panel_type, option_flags> matrix_name(buffer_rows, matrixUpdateData, matrixUpdateBlocks)
 
 #define SMARTMATRIX_ALLOCATE_SCROLLING_LAYER(layer_name, width, height, storage_depth, scrolling_options) \
-    typedef RGB_TYPE(storage_depth) SM_RGB;                                                                 \
+    typedef RGB_TYPE(storage_depth) SM_RGB;                                                               \
     static uint8_t layer_name##Bitmap[width * (height / 8)];                                              \
     static SMLayerScrolling<RGB_TYPE(storage_depth), scrolling_options> layer_name(layer_name##Bitmap, width, height)  
 
-#define SMARTMATRIX_ALLOCATE_INDEXED_LAYER(layer_name, width, height, storage_depth, indexed_options) \
-    typedef RGB_TYPE(storage_depth) SM_RGB;                                                                 \
-    static uint8_t layer_name##Bitmap[2 * width * (height / 8)];                                              \
-    static SMLayerIndexed<RGB_TYPE(storage_depth), indexed_options> layer_name(layer_name##Bitmap, width, height)  
+#define SMARTMATRIX_ALLOCATE_INDEXED_LAYER(layer_name, width, height, storage_depth, indexed_options)     \
+    typedef RGB_TYPE(storage_depth) SM_RGB;                                                               \
+    static RGB_TYPE(storage_depth) layer_name##Palette[PALETTE_SIZE_FROM_OPTIONS(indexed_options)];       \
+    static uint8_t layer_name##Bitmap[2 * width * height / BIT_COUNT_FROM_OPTIONS(indexed_options)];      \
+    static SMLayerIndexed<RGB_TYPE(storage_depth), indexed_options> layer_name(layer_name##Bitmap, layer_name##Palette, width, height)  
 
 #define SMARTMATRIX_ALLOCATE_BACKGROUND_LAYER(layer_name, width, height, storage_depth, background_options) \
     typedef RGB_TYPE(storage_depth) SM_RGB;                                                                 \
-    static RGB_TYPE(storage_depth) backgroundBitmap[2*width*height];                                        \
+    static RGB_TYPE(storage_depth) backgroundBitmap[2 * width * height];                                    \
     static SMLayerBackground<RGB_TYPE(storage_depth), background_options> layer_name(backgroundBitmap, width, height)  
 
 

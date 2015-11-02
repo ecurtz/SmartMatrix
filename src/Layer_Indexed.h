@@ -26,20 +26,27 @@
 
 #include "Layer.h"
 #include "MatrixCommon.h"
+#include "MatrixFontCommon.h"
 
 #define SM_INDEXED_OPTIONS_NONE     0
 
-// font
-#include "MatrixFontCommon.h"
+#define SM_INDEXED_2_COLOR     0
+#define SM_INDEXED_4_COLOR     1
+#define SM_INDEXED_16_COLOR    3
+#define SM_INDEXED_256_COLOR   7
+
+#define SM_INDEXED_DEPTH_MASK     7
+
+#define PALETTE_SIZE_FROM_OPTIONS(x)   (2 << (x & SM_INDEXED_DEPTH_MASK))
+#define BIT_COUNT_FROM_OPTIONS(x)   ((x & SM_INDEXED_DEPTH_MASK) + 1)
 
 template <typename RGB, unsigned int optionFlags>
 class SMLayerIndexed : public SM_Layer {
     public:
-        SMLayerIndexed(uint8_t * bitmap, uint16_t width, uint16_t height);
+        SMLayerIndexed(uint8_t * bitmap, RGB * colors, uint16_t width, uint16_t height);
         void frameRefreshCallback();
         void fillRefreshRow(uint16_t hardwareY, rgb48 refreshRow[]);
         void fillRefreshRow(uint16_t hardwareY, rgb24 refreshRow[]);
-
 
         void enableColorCorrection(bool enabled);
 
@@ -61,17 +68,22 @@ class SMLayerIndexed : public SM_Layer {
         template <typename RGB_OUT>
         bool getPixel(uint16_t hardwareX, uint16_t hardwareY, RGB_OUT &xyPixel);
 
-        // bitmap size is 32 rows (supporting maximum dimension of screen height in all rotations), by 32 bits
         // double buffered to prevent flicker while drawing
         uint8_t * indexedBitmap;
 
         void handleBufferCopy(void);
 
-        RGB color = RGB(0xffff, 0xffff, 0xffff);
-        unsigned char currentframe = 0;
+        RGB * palette;
+        uint8_t paletteSize;
+        uint8_t entryBits;
+        uint8_t entryMask;
+        uint8_t entryPack;
+        uint8_t currentframe = 0;
+        bool zeroTransparent = true;
+        
         char text[textLayerMaxStringLength];
 
-        unsigned char textlen;
+        uint8_t textlen;
         int scrollcounter = 0;
         const bitmap_font *scrollFont = &apple5x7;
 
@@ -81,7 +93,7 @@ class SMLayerIndexed : public SM_Layer {
 
         bool ccEnabled = sizeof(RGB) <= 3 ? true : false;
         ScrollMode scrollmode = bounceForward;
-        unsigned char framesperscroll = 4;
+        uint8_t framesperscroll = 4;
 
         // these variables describe the text bitmap: size, location on the screen, and bounds of where it moves
         unsigned int textWidth;
