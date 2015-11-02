@@ -55,7 +55,8 @@ public:
     // init
     SmartMatrix3(uint8_t bufferrows, uint32_t * dataBuffer, uint8_t * blockBuffer);
     void begin(void);
-    void addLayer(SM_Layer * newlayer);
+    void addLayer(SM_Layer * newLayer);
+    void removeLayer(SM_Layer * oldLayer);
 
     // configuration
     void setRotation(rotationDegrees rotation);
