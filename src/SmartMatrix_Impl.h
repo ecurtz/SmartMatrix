@@ -240,26 +240,29 @@ INLINE void SmartMatrix3<refreshDepth, matrixWidth, matrixHeight, panelType, opt
             numLoopsWithoutExit = 0;
         }
 
+        // enqueue row
+        if (++currentRow >= matrixRowsPerFrame)
+            currentRow = 0;
+
         // do once-per-frame updates
         if (!currentRow) {
-            if (rotationChange) {
+//            globalinstance->countFPS();
+            
                 SM_Layer * templayer = globalinstance->baseLayer;
                 while(templayer) {
+               if (rotationChange) {
                     templayer->setRotation(rotation);
-                    templayer = templayer->nextLayer;
-                }
-                rotationChange = false;
             }
-
-            SM_Layer * templayer = globalinstance->baseLayer;
-            while(templayer) {
                 if (refreshRateChanged) {
                     templayer->setRefreshRate(refreshRate);
                 }
+               
                 templayer->frameRefreshCallback();
                 templayer = templayer->nextLayer;
             }
+            rotationChange = false;
             refreshRateChanged = false;
+            
             if (brightnessChange) {
                 calculateTimerLut();
                 brightnessChange = false;
@@ -268,10 +271,6 @@ INLINE void SmartMatrix3<refreshDepth, matrixWidth, matrixHeight, panelType, opt
 
         // do once-per-line updates
         // none right now
-
-        // enqueue row
-        if (++currentRow >= matrixRowsPerFrame)
-            currentRow = 0;
 
         SmartMatrix3<refreshDepth, matrixWidth, matrixHeight, panelType, optionFlags>::loadMatrixBuffers(currentRow);
         cbWrite(&dmaBuffer);

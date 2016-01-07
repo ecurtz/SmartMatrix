@@ -67,6 +67,7 @@
 #define DEBUG_PIN_3 19
 
 
+#define GPIO_PIN_OE_TEENSY_PIN      4
 #define GPIO_PIN_CLK_TEENSY_PIN     14
 #define GPIO_PIN_B0_TEENSY_PIN      6
 #define GPIO_PIN_R0_TEENSY_PIN      2
