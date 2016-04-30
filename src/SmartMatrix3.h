@@ -24,6 +24,8 @@
 #ifndef SmartMatrix3_h
 #define SmartMatrix3_h
 
+#include <Arduino.h>
+
 #include "SmartMatrix.h"
 
 /*
